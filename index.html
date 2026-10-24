@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Buraco negro de Schwarzschild em 3D feito de símbolos matemáticos, com lente gravitacional, Doppler relativístico e anel de fótons.">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>Horizonte de Glifos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Math&family=STIX+Two+Text:ital,wght@0,400;1,400&display=swap">
+<style>
+/* Layout: tela cheia preta; o buraco negro ocupa tudo, a interface é texto fino flutuando nos quatro cantos, sem fundos. */
+:root{
+  --void:#000000;
+  --ink:#8d8378;        /* cinza quente, como poeira iluminada pelo disco */
+  --ink-dim:#4a443e;
+  --ink-hi:#d9cbb8;
+  --ember:#ffb46b;      /* cor do disco a ~T de pico */
+  --rule:#1d1a17;
+  --f-data:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --f-math:"STIX Two Text", "Noto Sans Math", "Cambria Math", "Times New Roman", serif;
+  color-scheme:dark;
+}
+html,body{height:100%;background:var(--void);color:var(--ink);overflow:hidden}
+body{font:12px/1.5 var(--f-data);-webkit-font-smoothing:antialiased}
+canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;background:var(--void)}
+canvas#gl:active{cursor:grabbing}
+.hud{position:fixed;z-index:2;pointer-events:none;display:flex;flex-direction:column;gap:6px}
+.hud *{pointer-events:auto}
+.tl{top:calc(14px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px))}
+.tr{top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));align-items:flex-end}
+.bl{bottom:calc(14px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px))}
+.br{bottom:calc(14px + env(safe-area-inset-bottom,0px));right:max(16px,env(safe-area-inset-right,0px));align-items:flex-end}
+h1{margin:0;font:italic 400 20px/1.1 var(--f-math);color:var(--ink-hi);letter-spacing:.01em}
+h1 span{color:var(--ember)}
+.sub{color:var(--ink-dim);letter-spacing:.08em;text-transform:uppercase;font-size:10px}
+.read{display:grid;grid-template-columns:auto auto;gap:1px 12px;font-variant-numeric:tabular-nums;margin-top:6px}
+.read dt{color:var(--ink-dim)} .read dd{margin:0;color:var(--ink)}
+.read dd b{font-weight:500;color:var(--ink-hi)}
+#legib.on{color:var(--ember)}
+.row{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+button.t{font:11px/1 var(--f-data);color:var(--ink-dim);background:transparent;border:1px solid var(--rule);padding:6px 8px;cursor:pointer;letter-spacing:.03em}
+button.t:hover{color:var(--ink-hi);border-color:var(--ink-dim)}
+button.t[aria-pressed="true"]{color:var(--ink-hi);border-color:#3a332c}
+button.t[aria-pressed="true"]::before{content:"● ";color:var(--ember);font-size:8px;vertical-align:1px}
+button.t:focus-visible,input:focus-visible{outline:1px solid var(--ember);outline-offset:2px}
+label.s{display:flex;align-items:center;gap:8px;color:var(--ink-dim);font-size:11px}
+label.s output{color:var(--ink);min-width:5.5ch;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:120px;height:18px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--ink-dim)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;margin-top:-4px;border-radius:50%;background:var(--ink-hi)}
+input[type=range]::-moz-range-track{height:1px;background:var(--ink-dim)}
+input[type=range]::-moz-range-thumb{width:9px;height:9px;border:0;border-radius:50%;background:var(--ink-hi)}
+.help{color:var(--ink-dim);font-size:11px}
+.help kbd{font:inherit;color:var(--ink)}
+#eq{position:fixed;z-index:3;top:calc(14px + env(safe-area-inset-top,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));width:min(380px,calc(100vw - 32px));overflow:auto;background:var(--void);border:1px solid var(--rule);padding:16px 18px;color:var(--ink)}
+#eq h2{margin:0 0 10px;font:italic 400 18px var(--f-math);color:var(--ink-hi)}
+#eq h3{margin:16px 0 4px;font:500 10px var(--f-data);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+#eq p{margin:0 0 6px;line-height:1.55}
+#eq .m{font:17px/1.6 var(--f-math);color:var(--ink-hi);display:block;margin:2px 0 6px;overflow-x:auto;white-space:nowrap}
+#eq .x{position:absolute;top:10px;right:10px}
+body.clean .hud{display:none}
+#fail[hidden],#eq[hidden]{display:none}
+#fail{position:fixed;inset:0;display:grid;place-items:center;color:var(--ink);text-align:center;padding:24px}
+@media (max-width:640px){
+  .read{display:none}
+  input[type=range]{width:90px}
+  .help{display:none}
+  h1{font-size:17px}
+}
+</style>
+
+</head>
+<body>
+<canvas id="gl" aria-label="Buraco negro em 3D feito de símbolos matemáticos. Arraste para girar, role para aproximar."></canvas>
+
+<div class="hud tl">
+  <h1>Horizonte de <span>Glifos</span></h1>
+  <div class="sub">Schwarzschild · r<sub>s</sub> = 2GM/c² = 1</div>
+  <dl class="read">
+    <dt>distância</dt><dd><b id="rDist">—</b> r<sub>s</sub></dd>
+    <dt>inclinação</dt><dd><b id="rInc">—</b>°</dd>
+    <dt>lente</dt><dd><b id="rFov">—</b>° de campo</dd>
+    <dt>glifo</dt><dd id="legib">—</dd>
+    <dt>relógio</dt><dd><b id="rTime">—</b> r<sub>s</sub>/c</dd>
+  </dl>
+</div>
+
+<div class="hud tr">
+  <div class="row">
+    <button class="t" id="tLens" aria-pressed="true">lente gravitacional</button>
+    <button class="t" id="tDop" aria-pressed="true">Doppler + redshift</button>
+  </div>
+  <div class="row">
+    <button class="t" id="tJet" aria-pressed="false">jatos</button>
+    <button class="t" id="tStars" aria-pressed="true">fundo</button>
+    <button class="t" id="tRing" aria-pressed="true">anel de fótons</button>
+  </div>
+  <label class="s" for="sSpeed">tempo <input id="sSpeed" type="range" min="0" max="4" step="0.05" value="1"><output id="oSpeed">1.00×</output></label>
+  <label class="s" for="sExp">brilho <input id="sExp" type="range" min="0.2" max="3" step="0.05" value="1"><output id="oExp">1.00</output></label>
+  <label class="s" for="sFov">lupa <input id="sFov" type="range" min="0" max="1" step="0.001" value="0"><output id="oFov">45°</output></label>
+</div>
+
+<div class="hud bl">
+  <button class="t" id="bEq" style="align-self:flex-start">∮ equações</button>
+  <div class="help"><kbd>arrastar</kbd> girar · <kbd>roda/pinça</kbd> aproximar · <kbd>shift+roda</kbd> lupa · <kbd>espaço</kbd> pausa · <kbd>H</kbd> esconder</div>
+</div>
+
+<div class="hud br">
+  <div class="row">
+    <button class="t" data-preset="edge">borda · i=84°</button>
+    <button class="t" data-preset="tilt">inclinado · i=60°</button>
+    <button class="t" data-preset="pole">polar · i=17°</button>
+    <button class="t" data-preset="dive">mergulho</button>
+  </div>
+</div>
+
+<aside id="eq" hidden>
+  <button class="t x" id="bEqX">fechar</button>
+  <h2>O que está sendo calculado</h2>
+  <p>Unidades: G = c = 1 e r<sub>s</sub> = 1, então M = ½. Cada glifo é uma partícula; a GPU aplica estas fórmulas a cada quadro.</p>
+  <h3>Órbitas no disco</h3>
+  <span class="m">Ω(r) = √(GM / r³)</span>
+  <p>Rotação diferencial kepleriana: o interior gira muito mais rápido que a borda.</p>
+  <span class="m">r<sub>ISCO</sub> = 3 r<sub>s</sub></span>
+  <p>Última órbita circular estável. Dentro dela o gás mergulha em espiral até o horizonte.</p>
+  <h3>Temperatura (Novikov–Thorne simplificado)</h3>
+  <span class="m">T(r) ∝ r<sup>−3/4</sup> (1 − √(r<sub>ISCO</sub>/r))<sup>1/4</sup></span>
+  <h3>Desvio de frequência</h3>
+  <span class="m">g = √(1 − 3M/r) / (1 − <b>v</b>·<b>n</b>)</span>
+  <p>Combina redshift gravitacional e Doppler relativístico. Brilho observado ∝ g³ e cor ∝ g·T: o lado que se aproxima fica mais claro e mais azul.</p>
+  <h3>Lente gravitacional</h3>
+  <span class="m">θ<sub>±</sub> = ½ (β ± √(β² + 4θ<sub>E</sub>²))</span>
+  <span class="m">θ<sub>E</sub>² = 2 r<sub>s</sub> D<sub>LS</sub> / (D<sub>L</sub> D<sub>S</sub>)</span>
+  <p>A parte de trás do disco aparece por cima e por baixo da sombra (imagem primária θ₊). A imagem secundária θ₋ forma o anel interno, colado à sombra.</p>
+  <h3>Sombra e anel de fótons</h3>
+  <span class="m">r<sub>fóton</sub> = 1,5 r<sub>s</sub> ,  b<sub>c</sub> = (3√3/2) r<sub>s</sub> ≈ 2,598 r<sub>s</sub></span>
+  <p>Raios com parâmetro de impacto menor que b<sub>c</sub> caem no buraco. Por isso a sombra parece 2,6 vezes maior que o horizonte.</p>
+</aside>
+
+<div id="fail" hidden>WebGL não está disponível neste navegador, então o buraco negro não pode ser desenhado.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(async function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- glifos ---------- */
+const RAW = "×·÷/±∓=≠<>≤≥≈≅≡∝~∈∉⊂⊃⊆⊇⊄⊅∪∩∅∖∁ℕℤℚℝℂ∫∬∭∮∑∏∐∂∇∆∞∀∃∄∴∵¬∧∨⊕⊗⇒⇔√∛∜%‰!⊥∥∠∡∢αβγδεζηθικλμνξοπρστυφχψωΔΓΘΛΞΠΣΦΨΩℵℏ∘⊙∯≪≫⌊⌋⌈⌉∓";
+const GLYPHS = [...new Set(Array.from(RAW))];
+const NG = GLYPHS.length, COLS = 16, ROWS = Math.ceil(NG / COLS), CELL = 112;
+
+if (!window.THREE) { $('fail').hidden = false; $('fail').textContent = 'Não foi possível carregar a biblioteca 3D.'; return; }
+
+try {
+  await Promise.race([
+    Promise.all([
+      document.fonts.load('80px "Noto Sans Math"', '∫∬∭∐∢'),
+      document.fonts.load('italic 80px "STIX Two Text"', 'αβγ'),
+      document.fonts.load('80px "STIX Two Text"', 'ΔΓΣ')
+    ]),
+    new Promise(r => setTimeout(r, 2500))
+  ]);
+} catch (e) {}
+
+const atlasCanvas = document.createElement('canvas');
+atlasCanvas.width = COLS * CELL; atlasCanvas.height = ROWS * CELL;
+{
+  const c = atlasCanvas.getContext('2d');
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+  GLYPHS.forEach((g, i) => {
+    const cx = (i % COLS) * CELL + CELL / 2, cy = Math.floor(i / COLS) * CELL + CELL / 2;
+    const cp = g.codePointAt(0);
+    const greekLower = cp >= 0x3B1 && cp <= 0x3C9;
+    const px = Math.round(CELL * 0.56);
+    c.font = (greekLower ? 'italic ' : '') + px + 'px "STIX Two Text", "Noto Sans Math", "Cambria Math", serif';
+    c.fillText(g, cx, cy + CELL * 0.03);
+  });
+}
+
+/* ---------- renderer ---------- */
+const canvas = $('gl');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
+} catch (e) { $('fail').hidden = false; return; }
+renderer.setClearColor(0x000000, 1);
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+renderer.setPixelRatio(DPR);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 2000);
+const BASE_FOV = 45, MIN_FOV = 1.2;
+
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.set(0, 0, 0);
+controls.enablePan = false;
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.rotateSpeed = 0.55;
+controls.zoomSpeed = 0.9;
+controls.minDistance = 3.4;
+controls.maxDistance = 170;
+
+function setSph(r, polDeg, azDeg){
+  const s = new THREE.Spherical(r, THREE.MathUtils.degToRad(polDeg), THREE.MathUtils.degToRad(azDeg));
+  camera.position.setFromSpherical(s);
+  camera.lookAt(0, 0, 0);
+}
+setSph(36, 84, -20);
+controls.update();
+
+/* ---------- textura de glifos ---------- */
+const atlas = new THREE.CanvasTexture(atlasCanvas);
+atlas.minFilter = THREE.LinearMipmapLinearFilter;
+atlas.magFilter = THREE.LinearFilter;
+atlas.generateMipmaps = true;
+
+/* ---------- uniforms compartilhados ---------- */
+const U = {
+  uTime: { value: 0 }, uReal: { value: 0 },
+  uScale: { value: 1 }, uExposure: { value: 1 },
+  uLens: { value: 1 }, uDoppler: { value: 1 },
+  uCycle: { value: 0.012 },
+  uUp: { value: new THREE.Vector3(0, 1, 0) },
+  uApproach: { value: new THREE.Vector3(1, 0, 0) }, uApproachK: { value: 0 },
+  uAtlas: { value: atlas }, uGrid: { value: new THREE.Vector2(COLS, ROWS) }
+};
+
+const VERT = `
+precision highp float;
+attribute vec4 aData;
+attribute vec4 aRnd;
+uniform float uTime, uReal, uScale, uExposure, uLens, uDoppler, uImage, uGain, uCycle, uApproachK;
+uniform vec3 uUp, uApproach;
+varying vec3 vColor; varying float vAlpha; varying float vSize; varying float vGlyph; varying float vRot;
+const float NG = ${NG}.0;
+const float BC = 2.598;   // parâmetro de impacto crítico (3√3/2) r_s
+
+vec3 bb(float t){
+  vec3 c = mix(vec3(0.28,0.012,0.0), vec3(0.95,0.20,0.02), smoothstep(0.0,0.35,t));
+  c = mix(c, vec3(1.0,0.50,0.13), smoothstep(0.35,0.62,t));
+  c = mix(c, vec3(1.0,0.78,0.50), smoothstep(0.62,0.88,t));
+  c = mix(c, vec3(1.0,0.95,0.88), smoothstep(0.88,1.12,t));
+  c = mix(c, vec3(0.70,0.82,1.0), smoothstep(1.12,1.6,t));
+  return c;
+}
+void hide(){ gl_Position = vec4(2.0,2.0,2.0,1.0); gl_PointSize = 0.0; vAlpha = 0.0; }
+
+void main(){
+  vec3 P = vec3(0.0); vec3 V = vec3(0.0);
+  float I = 1.0, T = 1.0, grav = 1.0, useGamma = 0.0, gexp = 3.0;
+  float wsize = 0.05;
+  vec3 C = cameraPosition;
+  float Dl = length(C);
+  vec3 ax = -C / Dl;
+  float shs = BC / Dl;
+  float sh = shs / sqrt(max(1.0 - shs*shs, 1e-3));   // tan do raio angular da sombra
+
+#if defined(DISK)
+  float r = aData.x;
+  float om = sqrt(0.5 / (r*r*r));
+  float phi = aData.y + om * uTime;
+  float y = aData.z * (1.0 + 0.18 * sin(phi*3.0 + aRnd.x*6.28 + uTime*0.02));
+  P = vec3(r*cos(phi), y, r*sin(phi));
+  V = vec3(-sin(phi), 0.0, cos(phi)) * sqrt(0.5 / r);
+  grav = sqrt(max(1.0 - 1.5/r, 0.0));        // u^t de órbita circular: inclui dilatação + gravidade
+  float q = 1.0 - sqrt(3.0 / r);
+  I = (q / r) / 0.035;
+  T = pow(max(pow(r, -3.0) * q, 0.0) / 0.002106, 0.25);
+  float arms = 0.78 + 0.22 * sin(2.0*(phi - 0.048*uTime) - 5.5*log(r) + aRnd.y*0.8);
+  I *= arms * (0.55 + 0.9*aRnd.y);
+  wsize = 0.055 * aRnd.z;
+#elif defined(PLUNGE)
+  float p = fract(aData.x + uTime * 0.006);
+  float r = max(3.0 - 2.05 * pow(p, 1.35), 1.0);
+  float phi = aData.y + 0.136 * uTime + 4.5 * p * p;
+  P = vec3(r*cos(phi), aData.z * (r/3.0), r*sin(phi));
+  V = vec3(-sin(phi), 0.0, cos(phi)) * min(sqrt(0.5/r), 0.6) - vec3(cos(phi), 0.0, sin(phi)) * 0.5 * p;
+  grav = sqrt(max(1.0 - 1.0/r, 0.0));
+  useGamma = 1.0;
+  I = 0.42 * smoothstep(0.0, 0.04, p) * (0.6 + 0.8*aRnd.y);
+  T = 0.95;
+  wsize = 0.042 * aRnd.z;
+#elif defined(STARS)
+  P = position;
+  I = aData.x * (0.72 + 0.28 * sin(uReal * (0.4 + aRnd.x*2.2) + aRnd.y*6.28));
+  T = aData.y;
+  wsize = aData.z;
+#elif defined(JET)
+  float side = aRnd.w > 0.5 ? 1.0 : -1.0;
+  float p = fract(aData.x + uTime * 0.0035);
+  float h = 1.4 + p * p * 75.0;
+  float w = (0.10 + 0.24 * sqrt(h)) * aData.z;
+  float ang = aData.y + uTime * 0.01 + h * 0.09;
+  P = vec3(w*cos(ang), side*h, w*sin(ang));
+  V = vec3(0.0, side * 0.6, 0.0);
+  useGamma = 1.0;
+  I = 0.55 * smoothstep(0.0, 0.03, p) * (1.0 - smoothstep(0.55, 1.0, p)) / (1.0 + 0.03*h) * (0.5 + aRnd.y);
+  T = 1.5;
+  wsize = 0.06 * aRnd.z;
+#elif defined(RING)
+  vec3 Ux = normalize(cross(ax, uUp));
+  vec3 Wy = cross(Ux, ax);
+  float ang = aData.x + uTime * 0.03;
+  vec3 d = cos(ang) * Ux + sin(ang) * Wy;
+  float dep = max(Dl - 3.2, 0.5);
+  float rr = sh * (1.0 + 0.05 * aData.y);
+  P = C + ax * dep + d * rr * dep;
+  float asym = 1.0 + 1.7 * uApproachK * dot(d, uApproach) * uDoppler;
+  I = 0.6 * max(asym, 0.05) * max(asym, 0.05) * (0.5 + aRnd.y) * (1.0 - 0.6*aData.y);
+  T = 0.92 + 0.25 * uApproachK * dot(d, uApproach) * uDoppler;
+  wsize = 0.04 * aRnd.z;
+#endif
+
+  /* ---- Doppler relativístico + redshift gravitacional ---- */
+  float g = 1.0;
+#ifndef RING
+  if (uDoppler > 0.5) {
+    vec3 n = normalize(C - P);
+    float b2 = dot(V, V);
+    float gam = useGamma > 0.5 ? 1.0 / sqrt(max(1.0 - b2, 1e-3)) : 1.0;
+    g = grav / (gam * (1.0 - dot(V, n)));
+    g = min(g, 3.0);
+  }
+#endif
+  float Iobs = I * pow(g, gexp);
+  float Tobs = T * g;
+
+  /* ---- lente gravitacional (equação da lente de ponto, imagens θ+ e θ-) ---- */
+  vec3 Pimg = P;
+  float mu = 1.0, vis = 1.0;
+#ifndef RING
+  vec3 Q = P - C;
+  float z = dot(Q, ax);
+  float zz = max(z, 1e-3);
+  vec3 t = Q - z * ax;
+  float tl = length(t);
+  vec3 upT = uUp - dot(uUp, ax) * ax;
+  vec3 td = tl > 1e-6 ? t / tl : normalize(upT);
+  float beta = tl / zz;
+  float Dls = z - Dl;
+  bool lensed = (uLens > 0.5) && (Dls > 0.0);
+  if (uImage < 0.0 && uLens < 0.5) { hide(); return; }
+  float th = beta;
+  if (lensed) {
+    float tE2 = 2.0 * Dls / (Dl * zz);
+    float tE = sqrt(tE2);
+    float root = sqrt(beta*beta + 4.0*tE2);
+    float u = beta / max(tE, 1e-6);
+    float mq = (u*u + 2.0) / (2.0 * u * sqrt(u*u + 4.0) + 1e-4);
+    if (uImage > 0.0) {
+      th = 0.5 * (beta + root);
+      mu = min(mq + 0.5, 4.0);
+      vis = smoothstep(sh * 0.985, sh * 1.04, th);
+    } else {
+      float tm = 0.5 * (root - beta);
+      th = -sh * (1.0 + 0.09 * clamp(tm / max(tE, 1e-6), 0.0, 1.0));
+      mu = clamp(mq - 0.5, 0.05, 1.0) * 0.8;
+    }
+    Pimg = C + z * ax + td * th * zz;
+  } else if (uImage < 0.0) {
+    // luz da parte da frente que contorna o buraco por trás e volta: imagem fina colada à sombra
+    th = -sh * (1.015 + 0.03 * aRnd.y);
+    mu = 0.16;
+    Pimg = C + Dl * ax + td * th * Dl;
+  }
+#endif
+
+  vec4 mv = viewMatrix * vec4(Pimg, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float dist = -mv.z;
+  if (dist <= 0.0) { hide(); return; }
+  float s = wsize * uScale / dist;
+  float a = uExposure * uGain * Iobs * mu * vis;
+  a *= smoothstep(0.12, 0.5, dist);
+  if (s < 1.6) { a *= (s*s) / 2.56; s = 1.6; }
+  s = min(s, 160.0);
+  gl_PointSize = s;
+  vSize = s;
+  vAlpha = a;
+  vColor = bb(Tobs);
+  vGlyph = mod(floor(aData.w + uTime * uCycle * (0.3 + aRnd.y)), NG);
+  vRot = (aRnd.x - 0.5) * 1.2 + sin(uTime * 0.01 * (0.5 + aRnd.y) + aRnd.x * 6.28) * 0.35;
+}`;
+
+const FRAG = `
+precision highp float;
+uniform sampler2D uAtlas;
+uniform vec2 uGrid;
+varying vec3 vColor; varying float vAlpha; varying float vSize; varying float vGlyph; varying float vRot;
+void main(){
+  vec2 pc = gl_PointCoord - 0.5;
+  float dotA = exp(-dot(pc, pc) * 16.0);
+  float k = smoothstep(4.0, 13.0, vSize);
+  float gA = 0.0;
+  if (k > 0.001) {
+    float c = cos(vRot), s = sin(vRot);
+    vec2 uv = vec2(c*pc.x - s*pc.y, s*pc.x + c*pc.y) + 0.5;
+    if (uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0) {
+      float col = mod(vGlyph, uGrid.x);
+      float row = floor(vGlyph / uGrid.x);
+      gA = texture2D(uAtlas, vec2((col + uv.x) / uGrid.x, 1.0 - (row + uv.y) / uGrid.y)).a;
+    }
+  }
+  float A = mix(dotA, gA * 1.5, k) * vAlpha;
+  if (A < 0.002) discard;
+  gl_FragColor = vec4(vColor, min(A, 1.0));
+}`;
+
+function makeMat(def, image, gain){
+  return new THREE.ShaderMaterial({
+    defines: { [def]: '' },
+    uniforms: Object.assign({}, U, { uImage: { value: image }, uGain: { value: gain } }),
+    vertexShader: VERT, fragmentShader: FRAG,
+    transparent: true, depthWrite: false, depthTest: true,
+    blending: THREE.AdditiveBlending
+  });
+}
+
+function rnd(){ return Math.random(); }
+function gauss(){ let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2*Math.log(u)) * Math.cos(6.2831853*v); }
+
+function makeGeo(n, fill){
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(n * 3), d = new Float32Array(n * 4), rr = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) fill(i, pos, d, rr);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aData', new THREE.BufferAttribute(d, 4));
+  geo.setAttribute('aRnd', new THREE.BufferAttribute(rr, 4));
+  return geo;
+}
+
+const small = Math.min(innerWidth, innerHeight) < 700;
+const K = small ? 0.5 : 1;
+const groups = {};
+
+function addLayer(name, def, n, fill, gain, secondary){
+  const geo = makeGeo(n, fill);
+  const list = [];
+  const p1 = new THREE.Points(geo, makeMat(def, 1, gain));
+  p1.frustumCulled = false; p1.renderOrder = 2; scene.add(p1); list.push(p1);
+  if (secondary) {
+    const p2 = new THREE.Points(geo, makeMat(def, -1, gain));
+    p2.frustumCulled = false; p2.renderOrder = 2; scene.add(p2); list.push(p2);
+  }
+  groups[name] = list;
+}
+
+// disco de acreção: r de 3 (ISCO) a ~20 r_s, distribuição log-uniforme
+addLayer('disk', 'DISK', Math.round(260000 * K), (i, pos, d, r) => {
+  const R = 3.0 * Math.pow(20 / 3, Math.pow(rnd(), 1.1));
+  d[i*4] = R; d[i*4+1] = rnd() * 6.2831853;
+  d[i*4+2] = gauss() * (0.012 * R + 0.01); d[i*4+3] = Math.floor(rnd() * NG);
+  r[i*4] = rnd(); r[i*4+1] = rnd(); r[i*4+2] = 0.7 + rnd() * 0.6; r[i*4+3] = rnd();
+}, 0.42 / K, true);
+
+// região de mergulho: gás caindo da ISCO até o horizonte
+addLayer('plunge', 'PLUNGE', Math.round(7000 * K), (i, pos, d, r) => {
+  d[i*4] = rnd(); d[i*4+1] = rnd() * 6.2831853; d[i*4+2] = gauss() * 0.03; d[i*4+3] = Math.floor(rnd() * NG);
+  r[i*4] = rnd(); r[i*4+1] = rnd(); r[i*4+2] = 0.7 + rnd() * 0.6; r[i*4+3] = rnd();
+}, 0.6 / K, true);
+
+// estrelas de fundo (também sofrem lente)
+addLayer('stars', 'STARS', Math.round(22000 * K), (i, pos, d, r) => {
+  const u = rnd() * 2 - 1, th = rnd() * 6.2831853, s = Math.sqrt(1 - u*u), R = 320 + rnd() * 320;
+  pos[i*3] = R * s * Math.cos(th); pos[i*3+1] = R * u; pos[i*3+2] = R * s * Math.sin(th);
+  d[i*4] = 0.12 + Math.pow(rnd(), 7) * 2.4;
+  d[i*4+1] = 0.55 + rnd() * 1.05;
+  d[i*4+2] = 0.35 + rnd() * 0.35;
+  d[i*4+3] = Math.floor(rnd() * NG);
+  r[i*4] = rnd(); r[i*4+1] = rnd(); r[i*4+2] = 1; r[i*4+3] = rnd();
+}, 0.9 / K, true);
+
+// anel de fótons (imagens de ordem n ≥ 2, empilhadas na borda da sombra)
+addLayer('ring', 'RING', Math.round(5000 * K), (i, pos, d, r) => {
+  d[i*4] = rnd() * 6.2831853; d[i*4+1] = Math.pow(rnd(), 2.2); d[i*4+2] = 0; d[i*4+3] = Math.floor(rnd() * NG);
+  r[i*4] = rnd(); r[i*4+1] = rnd(); r[i*4+2] = 0.7 + rnd() * 0.6; r[i*4+3] = rnd();
+}, 0.55 / K, false);
+
+// jatos relativísticos (opcionais)
+addLayer('jet', 'JET', Math.round(14000 * K), (i, pos, d, r) => {
+  d[i*4] = rnd(); d[i*4+1] = rnd() * 6.2831853; d[i*4+2] = Math.sqrt(rnd()); d[i*4+3] = Math.floor(rnd() * NG);
+  r[i*4] = rnd(); r[i*4+1] = rnd(); r[i*4+2] = 0.7 + rnd() * 0.6; r[i*4+3] = rnd();
+}, 0.5 / K, true);
+groups.jet.forEach(p => p.visible = false);
+
+// a sombra: esfera preta com o raio aparente b_c, oclui o que está atrás
+const shadow = new THREE.Mesh(new THREE.SphereGeometry(2.598, 64, 32), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+shadow.renderOrder = 1;
+scene.add(shadow);
+
+/* ---------- interface ---------- */
+let speed = 1, paused = false, simTime = 0, fovT = 0;
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) { speed = 0.25; $('sSpeed').value = 0.25; $('oSpeed').textContent = '0.25×'; }
+
+function toggle(id, fn){
+  const b = $(id);
+  b.addEventListener('click', () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); fn(on); });
+}
+toggle('tLens', on => U.uLens.value = on ? 1 : 0);
+toggle('tDop', on => U.uDoppler.value = on ? 1 : 0);
+toggle('tJet', on => groups.jet.forEach(p => p.visible = on));
+toggle('tStars', on => groups.stars.forEach(p => p.visible = on));
+toggle('tRing', on => groups.ring.forEach(p => p.visible = on));
+
+$('sSpeed').addEventListener('input', e => { speed = +e.target.value; $('oSpeed').textContent = speed.toFixed(2) + '×'; });
+$('sExp').addEventListener('input', e => { U.uExposure.value = +e.target.value; $('oExp').textContent = (+e.target.value).toFixed(2); });
+
+function fovFromT(t){ return BASE_FOV * Math.pow(MIN_FOV / BASE_FOV, t); }
+function setFovT(t){
+  fovT = Math.min(1, Math.max(0, t));
+  $('sFov').value = fovT;
+  camera.fov = fovFromT(fovT);
+  camera.updateProjectionMatrix();
+  $('oFov').textContent = camera.fov.toFixed(camera.fov < 10 ? 1 : 0) + '°';
+  controls.rotateSpeed = 0.55 * Math.max(camera.fov / BASE_FOV, 0.04);
+}
+$('sFov').addEventListener('input', e => setFovT(+e.target.value));
+canvas.addEventListener('wheel', e => {
+  if (!e.shiftKey) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const dy = e.deltaY || e.deltaX;
+  setFovT(fovT + (dy > 0 ? -0.04 : 0.04));
+}, { capture: true, passive: false });
+
+$('bEq').addEventListener('click', () => { $('eq').hidden = false; });
+$('bEqX').addEventListener('click', () => { $('eq').hidden = true; });
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('clean');
+  if (e.key === ' ') { paused = !paused; e.preventDefault(); }
+  if (e.key === 'Escape') $('eq').hidden = true;
+});
+
+/* ---------- presets de câmera ---------- */
+const PRESETS = {
+  edge: { r: 36, pol: 84, fov: 0 },
+  tilt: { r: 40, pol: 60, fov: 0 },
+  pole: { r: 44, pol: 17, fov: 0 },
+  dive: { r: 7.2, pol: 80, fov: 0 }
+};
+let tween = null;
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  const p = PRESETS[b.dataset.preset];
+  const from = new THREE.Spherical().setFromVector3(camera.position);
+  tween = { t: 0, from, to: { r: p.r, pol: THREE.MathUtils.degToRad(p.pol), az: from.theta }, f0: fovT, f1: p.fov };
+}));
+
+/* ---------- loop ---------- */
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+setFovT(0);
+
+const tmpV = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpN = new THREE.Vector3();
+let last = performance.now(), hudT = 0;
+const TIME_RATE = 8;   // r_s/c por segundo de tela, em 1×
+
+function frame(now){
+  const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  U.uReal.value += dt;
+  if (!paused) simTime += dt * speed * TIME_RATE;
+  U.uTime.value = simTime;
+
+  if (tween) {
+    tween.t = Math.min(1, tween.t + dt / 1.8);
+    const e = tween.t < .5 ? 4*tween.t**3 : 1 - Math.pow(-2*tween.t + 2, 3) / 2;
+    const r = Math.exp(THREE.MathUtils.lerp(Math.log(tween.from.radius), Math.log(tween.to.r), e));
+    const pol = THREE.MathUtils.lerp(tween.from.phi, tween.to.pol, e);
+    camera.position.setFromSpherical(new THREE.Spherical(r, pol, tween.from.theta));
+    setFovT(THREE.MathUtils.lerp(tween.f0, tween.f1, e));
+    if (tween.t >= 1) tween = null;
+  }
+  controls.update();
+  camera.updateMatrixWorld();
+
+  U.uScale.value = renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  U.uUp.value.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+
+  // lado do disco que se aproxima do observador (para a assimetria do anel)
+  const C = camera.position, Dl = C.length();
+  const ax = tmpN.copy(C).multiplyScalar(-1 / Dl);
+  let best = -1, bestPhi = 0;
+  for (let k = 0; k < 64; k++) {
+    const ph = k / 64 * Math.PI * 2;
+    tmpP.set(3 * Math.cos(ph), 0, 3 * Math.sin(ph));
+    tmpV.copy(C).sub(tmpP).normalize();
+    const vn = (-Math.sin(ph) * tmpV.x + Math.cos(ph) * tmpV.z) * 0.408;
+    if (vn > best) { best = vn; bestPhi = ph; }
+  }
+  tmpP.set(3 * Math.cos(bestPhi), 0, 3 * Math.sin(bestPhi));
+  tmpP.addScaledVector(ax, -tmpP.dot(ax));
+  if (tmpP.lengthSq() > 1e-6) U.uApproach.value.copy(tmpP.normalize());
+  U.uApproachK.value = Math.max(best, 0);
+
+  renderer.render(scene, camera);
+
+  hudT += dt;
+  if (hudT > 0.12) {
+    hudT = 0;
+    $('rDist').textContent = Dl.toFixed(Dl < 10 ? 2 : 1);
+    $('rInc').textContent = (Math.acos(Math.abs(C.y) / Dl) * 180 / Math.PI).toFixed(0);
+    $('rFov').textContent = camera.fov.toFixed(camera.fov < 10 ? 1 : 0);
+    $('rTime').textContent = simTime.toFixed(0);
+    const near = Math.max(Dl - 5, 0.8);
+    const px = 0.055 * U.uScale.value / near / DPR;
+    const el = $('legib');
+    el.textContent = px >= 7 ? `legível · ${px.toFixed(0)} px` : `poeira · ${px.toFixed(1)} px`;
+    el.classList.toggle('on', px >= 7);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
