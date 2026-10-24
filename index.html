@@ -189,7 +189,16 @@ try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
 } catch (e) { $('fail').hidden = false; return; }
 renderer.setClearColor(0x000000, 1);
-const DPR = Math.min(window.devicePixelRatio || 1, 2);
+// resolução adaptativa: o custo aqui é de preenchimento (milhões de sprites aditivos),
+// então a nitidez sobe ou desce conforme o FPS medido, e o canvas nunca passa de ~2,2 MP.
+const MAX_PIX = 2.2e6;
+let quality = 1;
+function pixelRatio(){
+  const native = Math.min(window.devicePixelRatio || 1, 2);
+  const cap = Math.sqrt(MAX_PIX / Math.max(innerWidth * innerHeight, 1));
+  return Math.max(0.5, Math.min(native, cap) * quality);
+}
+let DPR = pixelRatio();
 renderer.setPixelRatio(DPR);
 
 const scene = new THREE.Scene();
@@ -379,7 +388,7 @@ void main(){
   float a = uExposure * uGain * Iobs * mu * vis;
   a *= smoothstep(0.12, 0.5, dist);
   if (s < 1.6) { a *= (s*s) / 2.56; s = 1.6; }
-  s = min(s, 160.0);
+  s = min(s, 72.0);
   gl_PointSize = s;
   vSize = s;
   vAlpha = a;
@@ -435,7 +444,7 @@ function makeGeo(n, fill){
   return geo;
 }
 
-const small = Math.min(innerWidth, innerHeight) < 700;
+const small = window.matchMedia('(pointer: coarse)').matches || Math.max(screen.width, screen.height) < 900;
 const K = small ? 0.5 : 1;
 const groups = {};
 
@@ -556,6 +565,8 @@ document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('clic
 /* ---------- loop ---------- */
 function resize(){
   const w = innerWidth, h = innerHeight;
+  DPR = pixelRatio();
+  renderer.setPixelRatio(DPR);
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -620,8 +631,18 @@ function frame(now){
     el.textContent = px >= 7 ? `legível · ${px.toFixed(0)} px` : `poeira · ${px.toFixed(1)} px`;
     el.classList.toggle('on', px >= 7);
   }
+  // mede o FPS a cada ~1,5 s e ajusta a resolução interna
+  fpsN++; fpsT += dt;
+  if (fpsT > 1.5) {
+    const fps = fpsN / fpsT; fpsN = 0; fpsT = 0;
+    const q0 = quality;
+    if (fps < 40) quality = Math.max(0.45, quality * (fps < 25 ? 0.75 : 0.88));
+    else if (fps > 57 && quality < 1) quality = Math.min(1, quality * 1.08);
+    if (quality !== q0) resize();
+  }
   requestAnimationFrame(frame);
 }
+let fpsN = 0, fpsT = 0;
 requestAnimationFrame(frame);
 })();
 </script>
